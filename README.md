@@ -1,5 +1,9 @@
 The STAIR model code is available at: https://github.com/yellow-binary-tree/STAIR/tree/main
 
+The data folder contains outputs of script.ipynb, these can be used to run the model on the small subset we made without having to download all the data.
+
+
+
 ### 1. Download AGQA Data
 
 * Download README and supporting data from the [AGQA homepage](https://cs.stanford.edu/people/ranjaykrishna/agqa/).
