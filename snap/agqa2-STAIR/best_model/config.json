@@ -1,0 +1,1 @@
+{"hidden_size": 512, "video_size": 1024, "text_size": 300, "dropout": 0.25, "answer_vocab_length": 172, "max_video_length": 64, "init_method": "default", "layer_norm": 1, "have_pretrain_head": true, "object_types": 253}
