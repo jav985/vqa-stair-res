@@ -41,49 +41,28 @@ def evaluate(dataloader, model, criterion, preds_file=None):
         model_output = model(batch, return_res_by_step=False, test_mode=True)
         logits = model_output['logits']
 
-        # ---- START PROPOSED FIX ----
-        # For debugging, you can print the shape to confirm:
-        # print(f"Original logits shape: {logits.shape}, ndim: {logits.ndim}")
-
         if logits.ndim == 1:
-            # If logits is 1D (e.g., shape [num_classes] because batch_size was 1),
-            # unsqueeze it to make it 2D (e.g., shape [1, num_classes])
-            # so that argmax along dim=1 works as expected.
             logits = logits.unsqueeze(0)
-
-        # For debugging, print the new shape:
-        # print(f"Adjusted logits shape: {logits.shape}, ndim: {logits.ndim}")
-        # ---- END PROPOSED FIX ----
 
         pred_list = torch.argmax(logits, dim=1)
 
         if args.dataset in ['AGQA', 'MSRVTT']:
-            # --- START MODIFIED SECTION FOR ZIP ---
             current_gold_answer = batch['answer']
-            current_qa_id_str = batch['qa_id'] # This is a string
+            current_qa_id_str = batch['qa_id']
 
-        # Ensure current_gold_answer is iterable (at least 1D) for zip
             if current_gold_answer.ndim == 0:
-            # If it's a 0-D tensor (scalar), unsqueeze it to make it 1-D, e.g., shape (1,)
                 iterable_gold_answer = current_gold_answer.unsqueeze(0)
             else:
-            # If it's already 1D (e.g. from a collate_fn that always returns lists/1D tensors), use as is
                 iterable_gold_answer = current_gold_answer
 
-        # To make zip work consistently when batch_size is 1,
-        # and pred_list and iterable_gold_answer will each yield one item,
-        # wrap the single qa_id string in a list.
             iterable_qa_id = [current_qa_id_str]
 
             for pred_item, gold_item, qa_id_item in zip(pred_list, iterable_gold_answer, iterable_qa_id):
                 preds_golds_list['qa_ids'].append(qa_id_item) # Use qa_id_item from zip
                 unk_token_id = dataloader.dataset.answer_vocab['word2id']['<UNK>']
-            # pred_item and gold_item will be 0-D tensors after being yielded by zip
-            # from their respective 1-D tensor iterables (pred_list and iterable_gold_answer)
                 acc_list.append(pred_item.cpu().item() == gold_item.cpu().item() and gold_item.cpu().item() != unk_token_id)
                 preds_golds_list['preds'].append(dataloader.dataset.answer_vocab['id2word'][pred_item.cpu().item()])
                 preds_golds_list['golds'].append(dataloader.dataset.answer_vocab['id2word'][gold_item.cpu().item()])
-            # --- END MODIFIED SECTION FOR ZIP ---
         elif args.dataset == 'STAR':
             for pred, qa_id in zip(pred_list, batch['qa_id']):
                 preds_golds_list['preds'].append(pred.cpu().item())
@@ -170,23 +149,14 @@ if __name__ == '__main__':
         model_config_path = os.path.join(args.model_ckpt, 'config.json')
         model_weights_path = os.path.join(args.model_ckpt, 'pytorch_model.bin')
 
-        # It's often good to load the config if it's used elsewhere or to understand the model structure
         model_config = json.load(open(model_config_path))
 
         print(f"Loading entire model object from: {model_weights_path}")
-        # Load the entire model object directly.
-        # map_location=device ensures it's loaded to the correct device (CPU or CUDA).
-        # The FutureWarning about weights_only still applies: if loading from an untrusted source,
-        # this method (loading a full pickled object) carries security risks.
-        # If you trust this model file, this is the way to load it given how it was saved.
         model = torch.load(model_weights_path, map_location=device)
 
-        # Ensure the loaded object is indeed what you expect (optional but good practice)
         if not isinstance(model, VideoNMN):
             raise TypeError(f"Loaded model from {model_weights_path} is of type {type(model)}, expected VideoNMN.")
 
-        # The existing print statements for model structure and parameters
-        # that might come after this will now operate on the loaded (trained) model.
 
 #    if args.model_ckpt is not None:
         # if os.path.isdir(args.model_ckpt):
